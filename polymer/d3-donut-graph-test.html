@@ -1,0 +1,112 @@
+<!doctype html>
+
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+
+    <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+    <script src="../../web-component-tester/browser.js"></script>
+    <script src="../../test-fixture/test-fixture-mocha.js"></script>
+
+    <link rel="import" href="../../test-fixture/test-fixture.html">
+    <link rel="import" href="../d3-donut-graph.html">
+</head>
+<body>
+
+<test-fixture id="DonutGraph">
+    <template>
+        <donut-graph>
+        </donut-graph>
+    </template>
+</test-fixture>
+
+<script>
+    describe('<donut-graph>', function () {
+        var myEl;
+
+        beforeEach(function () {
+            myEl = fixture('DonutGraph');
+        });
+
+        it('should set a ready property once initialized', function () {
+            assert.isTrue(myEl.ready);
+        });
+
+        it('should create the svg', function () {
+            assert.ok(myEl.getSvg());
+        });
+
+        it('should create the pie', function () {
+            assert.ok(myEl.getPie());
+        });
+
+        it('should create the arc', function () {
+            assert.ok(myEl.getArc());
+        });
+
+        it('should be able to get paths of the svg', function() {
+            assert.ok(myEl.getPaths());
+        });
+
+        it('should have an arcColors property that uses ["#3EA2D4", "#155AAD", "#A4DD28", "#77BC1F"] as its default', function () {
+            var expected = ['#3EA2D4', '#155AAD', '#A4DD28', '#77BC1F']
+                    , actual = myEl.arcColors;
+
+            assert.deepEqual(actual, expected);
+        });
+
+        it('should create the colors to be be used by the graph', function () {
+            assert.ok(myEl.getColors());
+        });
+
+        it('should initialize colors using the arcColors property', function () {
+            var expected = ['#3EA2D4', '#155AAD', '#A4DD28', '#77BC1F']
+                    , actual = myEl.getColors().range();
+
+            assert.deepEqual(actual, expected);
+        });
+
+        it('should initialize width', function () {
+            assert.ok(myEl.getWidth());
+        });
+
+        it('should initialize height', function () {
+            assert.ok(myEl.getHeight());
+        });
+
+        it('should set the arcs outer radius to half of either the width or height, whichever is smaller', function() {
+            var min = Math.min(myEl.getWidth(), myEl.getHeight());
+
+            var expected = min / 2
+                    , actual = myEl.getArc().outerRadius()();
+
+            assert.equal(actual, expected);
+        });
+
+        it('should call draw when the data property is set', function () {
+            var spy = sinon.spy(myEl, 'draw');
+
+            myEl.data = [1, 2, 3, 5];
+
+            assert.isTrue(spy.called);
+        });
+
+        it('should create same number of paths as data length when graph is drawn', function () {
+            myEl.data = [1, 2, 3, 4];
+
+            var expected = myEl.data.length
+                    , actual = myEl.getPaths()[0].length;
+
+            assert.equal(expected, actual);
+        });
+
+        it('should call an arc tween method when drawn for animation', function() {
+            var spy = sinon.spy(myEl, '_arcTween');
+
+            myEl.data = [1, 2, 3, 4];
+
+            assert.isTrue(spy.called);
+        });
+    });
+</script>

@@ -1,0 +1,201 @@
+<link rel="import" href="../polymer/polymer.html">
+
+<script src="../d3/d3.min.js"></script>
+<script src="../lodash/lodash.min.js"></script>
+
+<dom-module id="bar-graph">
+    <style>
+        :host {
+            display: block;
+            height: 100%;
+        }
+    </style>
+    <template>
+    </template>
+</dom-module>
+
+<script>
+    (function () { 'use strict';
+        var svg
+                , xScale
+                , yScale
+                , width
+                , height;
+                
+        Polymer({
+            is: 'bar-graph',
+            
+            properties: {
+                items: {
+                  type: Array
+                },
+                
+                lineValue: {
+                    type: Number,
+                    value: 0
+                },
+                
+                showLine: {
+                    type: Boolean,
+                    value: true
+                },
+                
+                rectanglesColor: {
+                    type: String,
+                    value: '#0377B0'
+                },
+                
+                ready: {
+                    type: Boolean,
+                    readOnly: true,
+                    notify: true
+                }
+            },
+            
+            observers: [
+                'draw(items, lineValue, showLine, ready)',
+                '_updateRectanglesColor(rectanglesColor, ready)'
+            ],
+            
+            attached: function() {
+                this._initializeGraph();
+            },
+            
+            getSvg: function() {
+                return svg;
+            },
+            
+            getRectangles: function() {
+                return svg.selectAll('rect');
+            },
+            
+            getScaleX: function () {
+                return xScale;
+            },
+            
+            getScaleY: function () {
+                return yScale;
+            },
+            
+            getWidth: function() {
+                return width;
+            },
+            
+            getHeight: function() {
+                return height;
+            },
+            
+            draw: function () {
+                this._setScaleXDomain(this.items);
+                this._setScaleYDomain(this.items, this.lineValue);
+                this.items ? this._drawRectangles(this.items) : this._removeRectangles();
+                this.showLine ? this._drawLine(this.lineValue) : this._removeLine();
+            },
+            
+            _drawRectangles: function(items) {
+                var self = this;
+                self._removeRectangles();
+                self.getRectangles()
+                        .data(items)
+                        .enter()
+                        .append('rect')
+                        .attr('x', function (d, i) {
+                            return i * ( self.getWidth() / items.length );
+                        })
+                        .attr('y', function() {
+                            return self.getScaleY()(0);
+                        })
+                        .attr('width', function () {
+                            return self.getScaleX().rangeBand();
+                        })
+                        .attr('height', function (d) {
+                            return self.getScaleY()(0) - self.getScaleY()(d.value);
+                        })
+                        .style({ fill: self.rectanglesColor })
+                        .transition()
+                        .duration(750)
+                        .attr('y', function(d) {
+                            return self.getScaleY()(d.value);
+                        });
+            },
+            
+            _removeRectangles: function() {
+                this.getRectangles().data([]).exit().remove();
+            },
+            
+            _updateRectanglesColor: function(newColor) {
+                this.getRectangles()
+                        .style({ fill: newColor });
+            },
+            
+            _drawLine: function(lineValue) {
+                this._removeLine();
+                this.getSvg().append('line')
+                        .attr('class', 'line')
+                        .attr({
+                            x1: 0,
+                            x2: this.getWidth(),
+                            y1: this.getScaleY()(lineValue),
+                            y2: this.getScaleY()(lineValue)
+                        })
+                        .attr('style', this._computeLineStyles());
+            },
+            
+            _removeLine: function() {
+                this.getSvg().selectAll('.line').remove();
+            },
+            
+            _computeLineStyles: function() {
+                return 'stroke-width: 2; stroke: #6BCEE5;';
+            },
+            
+            _initializeGraph: function() {
+                var self = this;
+                width = self.clientWidth;
+                height = self.clientHeight;
+                svg = d3.select(self)
+                        .append('svg')
+                            .attr('width', '100%')
+                            .attr('height', '100%')
+                            .attr('viewBox','0 0 ' + width + ' ' + height)
+                        .append("g")
+                            .attr('preserveAspectRatio','xMinYMin');
+                xScale = d3.scale.ordinal()
+                        .rangeRoundBands([0, width], .25);
+                yScale = d3.scale.linear()
+                        .range([height, 0]);
+                self._setReady(true);
+            },
+            
+            _setScaleXDomain: function(items) {
+                if (!_.isArray(items) || items.length <= 0) {
+                    return;
+                }
+                this.getScaleX().domain(items.map(function(d) {
+                    return d.key;
+                }));
+            },
+            
+            _setScaleYDomain: function(items, lineValue) {
+                if (!_.isArray(items) || items.length <= 0) {
+                    return;
+                }
+                this.getScaleY().domain([0, this._getMaxValue(items, lineValue)]);
+            },
+            
+            _getMaxValue: function (items, lineValue) {
+                var itemsMax = 0,
+                        lineValMax = 0;
+                if (items) {
+                    itemsMax = d3.max(items, function(d) {
+                        return d.value;
+                    });
+                }
+                if (lineValue) {
+                    lineValMax = lineValue;
+                }
+                return _.max([itemsMax, lineValMax]);
+            }
+        });
+    })();
+</script>

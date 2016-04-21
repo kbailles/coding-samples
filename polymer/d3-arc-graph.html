@@ -1,0 +1,209 @@
+<link rel="import" href="../polymer/polymer.html">
+
+<script src="../d3/d3.min.js"></script>
+<script src="../lodash/lodash.min.js"></script>
+
+<dom-module id="arc-graph">
+    <style>
+        :host {
+            display: block;
+            height: 100%;
+        }
+    </style>
+    <template>
+    </template>
+</dom-module>
+
+<script>
+    (function () { 'use strict';
+
+        var svg
+                , arc
+                , arcPath
+                , thinArc
+                , thinArcPath;
+
+        Polymer({
+            is: 'arc-graph',
+
+            properties: {
+                arcColor: {
+                    type: String,
+                    value: '#0377b0'
+                },
+
+                thinArcColor: {
+                    type: String,
+                    value: '#6BCEE5'
+                },
+
+                endAngle: {
+                    type: Number
+                },
+
+                ready: {
+                    type: Boolean,
+                    readOnly: true,
+                    notify: true
+                }
+            },
+
+            observers: [
+                '_adjustArcColors(arcColor, thinArcColor, ready)',
+                'draw(endAngle, ready)'
+            ],
+
+            attached: function() {
+              this._initializeGraph();
+            },
+
+            getSvg: function() {
+                return svg;
+            },
+
+            getArc: function() {
+                return arc;
+            },
+
+            getArcPath: function() {
+                return arcPath;
+            },
+
+            getThinArc: function() {
+                return thinArc;
+            },
+
+            getThinArcPath: function() {
+                return thinArcPath;
+            },
+
+            draw: function() {
+                this.getThinArcPath().attr('d', this.getThinArc());
+
+                var endAngleAsRadians = this._degreesToRadians(this.endAngle);
+
+                this.getArcPath()
+                        .transition()
+                        .duration(1000)
+                        .call(this._arcTween.bind(this), endAngleAsRadians);
+            },
+
+            _adjustArcColors: function() {
+                var self = this;
+
+                self.getArcPath().style({ fill: self.arcColor });
+                self.getThinArcPath().style({ fill: self.thinArcColor });
+            },
+
+            _initializeGraph: function () {
+                var self = this;
+
+                var width = self.clientWidth
+                        , height = self.clientHeight
+                        , minWidthHeight = Math.min(width, height)
+                        , radius = minWidthHeight / 2;
+
+                svg = d3.select(self)
+                            .append('svg')
+                            .attr('width', '100%')
+                            .attr('height', '100%')
+                            .attr('viewBox','0 0 ' + minWidthHeight + ' ' + minWidthHeight)
+                        .append("g")
+                            .attr('preserveAspectRatio','xMinYMin')
+                            .attr("transform", "translate(" + minWidthHeight / 2 + "," + minWidthHeight / 2 + ")");
+
+                arc = d3.svg.arc()
+                        .startAngle(0)
+                        .innerRadius(radius - 15)
+                        .outerRadius(radius);
+
+                thinArc = d3.svg.arc()
+                        .startAngle(0)
+                        .endAngle(360);
+
+                thinArcPath = svg
+                        .append('path')
+                        .style({ fill: self.thinArcColor });
+
+                arcPath = svg
+                        .append('path')
+                        .datum({endAngle: 0})
+                        .style({ fill: self.arcColor });
+
+                self._setThinArcsRadiusBasedOnOuterArc();
+
+                self._setReady(true);
+            },
+
+            _setThinArcRadius: function (inner, outer) {
+                var thinArc = this.getThinArc();
+
+                if (!thinArc) {
+                    return;
+                }
+
+                thinArc.innerRadius(inner)
+                        .outerRadius(outer);
+            },
+
+            _setThinArcsRadiusBasedOnOuterArc: function() {
+                var thinArc = this.getThinArc();
+
+                if (!thinArc) {
+                    return;
+                }
+
+                var centerOfArc = this._calculateCenterRadiusForArc();
+
+                this._setThinArcRadius(centerOfArc - 1, centerOfArc + 1);
+            },
+
+            _calculateCenterRadiusForArc: function() {
+                var arc = this.getArc();
+
+                if (!arc) {
+                    return 0;
+                }
+
+                var innerRad = arc.innerRadius()()
+                        , outerRad = arc.outerRadius()();
+
+                var innerOuterDiff = +((outerRad - innerRad) / 2).toFixed(1);
+
+                return innerRad + innerOuterDiff;
+            },
+
+            _degreesToRadians: function(degrees) {
+                if (!_.isNumber(degrees)) {
+                    return 0;
+                }
+
+                if (degrees < 0) {
+                    degrees = 0;
+                }
+
+                if (degrees > 360) {
+                    degrees = 360;
+                }
+
+                return degrees * (Math.PI / 180);
+            },
+
+            _arcTween: function (transition, newAngleInRadians) {
+                var self = this;
+
+                transition.attrTween('d', function (d) {
+                    var interpolate = d3.interpolate(d.endAngle, newAngleInRadians);
+
+                    // 't' is the interval of time (0 to 1) since the transition has began.
+                    return function (t) {
+                        // When 't' is 1 transition is complete and interpolate will return newAngleInRadians.
+                        d.endAngle = interpolate(t);
+
+                        return self.getArc()(d);
+                    };
+                });
+            }
+        });
+    })();
+</script>

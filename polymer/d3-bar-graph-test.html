@@ -1,0 +1,315 @@
+<!doctype html>
+
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+
+    <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+    <script src="../../web-component-tester/browser.js"></script>
+    <script src="../../test-fixture/test-fixture-mocha.js"></script>
+
+    <link rel="import" href="../../test-fixture/test-fixture.html">
+    <link rel="import" href="../d3-bar-graph.html">
+</head>
+<body>
+
+<test-fixture id="BarGraph">
+    <template>
+        <bar-graph>
+        </bar-graph>
+    </template>
+</test-fixture>
+
+<script>
+    describe('<bar-graph>', function() {
+        var myEl;
+
+        beforeEach(function() {
+            myEl = fixture('BarGraph');
+        });
+
+        it('should set a ready property once initialized', function() {
+           assert.isTrue(myEl.ready);
+        });
+
+        it('should initialize the svg', function() {
+           assert.ok(myEl.getSvg());
+        });
+
+        it('should initialize the rectangles', function() {
+           assert.ok(myEl.getRectangles());
+        });
+
+        it('should initialize the x scale', function() {
+           assert.ok(myEl.getScaleX());
+        });
+
+        it('should initialize the y scale', function() {
+            assert.ok(myEl.getScaleY());
+        });
+
+        it('should initialize width', function() {
+           assert.ok(myEl.getWidth());
+        });
+
+        it('should initialize height', function() {
+            assert.ok(myEl.getHeight());
+        });
+
+        it('should contain a showLine property that defaults to true', function() {
+            assert.isTrue(myEl.showLine);
+        });
+
+        it('should contain a lineValue property that defaults to 0', function() {
+            var expected = 0,
+                    actual = myEl.lineValue;
+
+            assert.equal(actual, expected);
+        });
+
+        it('should draw when the user has set the items property', function () {
+            var spy = sinon.spy(myEl, 'draw');
+
+            var items = [
+                {key: 1, value: 5},
+                {key: 2, value: 6},
+                {key: 3, value: 5},
+                {key: 4, value: 1}
+            ];
+
+            myEl.items = items;
+
+            assert.isTrue(spy.calledOnce);
+        });
+
+        it('should be able to draw rectangles', function() {
+            var items = [
+                {key: 1, value: 5},
+                {key: 2, value: 6},
+                {key: 3, value: 5},
+                {key: 4, value: 1}
+            ];
+
+            myEl._drawRectangles(items);
+
+            var actual = items.length
+                    , expected = myEl.getRectangles()[0].length;
+
+            assert.equal(actual, expected);
+        });
+
+        it('should draw rectangles when items is set', function() {
+            var items = [
+                {key: 1, value: 5},
+                {key: 2, value: 6},
+                {key: 3, value: 5},
+                {key: 4, value: 1}
+            ];
+
+            myEl.items = items;
+
+            var actual = items.length
+                    , expected = myEl.getRectangles()[0].length;
+
+            assert.equal(actual, expected);
+        });
+
+        it('should be able to remove rectangles', function() {
+            var items = [
+                {key: 1, value: 5},
+                {key: 2, value: 6},
+                {key: 3, value: 5},
+                {key: 4, value: 1}
+            ];
+
+            myEl._drawRectangles(items);
+            myEl._removeRectangles();
+
+            var actual = 0
+                    , expected = myEl.getRectangles()[0].length;
+
+            assert.equal(actual, expected);
+        });
+
+        it('should be able to redraw the rectangles', function() {
+            var items1 = [
+                {key: 1, value: 5},
+                {key: 2, value: 6},
+                {key: 3, value: 5},
+                {key: 4, value: 1}
+            ];
+
+            var items2 = [
+                {key: 1, value: 1},
+                {key: 2, value: 5}
+            ];
+
+            myEl._drawRectangles(items1);
+            myEl._drawRectangles(items2);
+
+            var actual = items2.length
+                    , expected = myEl.getRectangles()[0].length;
+
+            assert.equal(actual, expected);
+        });
+
+        it('should default the rectangles colors to rgb(3, 119, 176) (hex #0377b0)', function() {
+            var items = [
+                {key: 1, value: 1},
+                {key: 2, value: 5}
+            ];
+
+            myEl._drawRectangles(items);
+
+            var haystack = ['rgb(3, 119, 176)', '#0377b0']
+                    , needle = myEl.getRectangles()[0][0].style.fill;
+
+            assert.include(haystack, needle);
+        });
+
+        it('should be able to set the domain for the x axis scale', function() {
+            var items = [
+                {key: 1, value: 1},
+                {key: 2, value: 5}
+            ];
+
+            myEl.items = items;
+            myEl._setScaleXDomain(items);
+
+            var expected = myEl.getWidth()
+                    , actual = myEl.getScaleX().rangeBand();
+
+            assert.isBelow(actual, expected);
+        });
+
+        it('should be able to set the domain for the y axis scale', function() {
+            var items = [
+                {key: 1, value: 1},
+                {key: 2, value: 5}
+            ];
+
+            myEl.items = items;
+            myEl._setScaleYDomain(items);
+
+            var expected = 0
+                    , actual = myEl.getScaleY()(items[1].value);
+
+            assert.equal(actual, expected);
+        });
+
+        it('should be able to get the max value of lineValue and items', function () {
+            var items = [
+                {key: 1, value: 1},
+                {key: 2, value: 5}
+            ];
+
+            var lineValue = 10;
+
+            var expected = 10,
+                    actual = myEl._getMaxValue(items, lineValue);
+
+            assert.equal(actual, expected);
+        });
+
+        it('should scale y axis domain properly if line value is greater than any of the items', function () {
+            var items = [
+                {key: 1, value: 1},
+                {key: 2, value: 5}
+            ];
+
+            var lineValue = 10;
+
+            myEl._setScaleYDomain(items, lineValue);
+
+            var expected = 0,
+                    actual = myEl.getScaleY()(lineValue);
+
+            assert.equal(actual, expected);
+        });
+
+        it('should get the max value when only items is passed', function() {
+            var items = [
+                {key: 1, value: 1},
+                {key: 2, value: 5}
+            ];
+
+            var expected = 5,
+                    actual = myEl._getMaxValue(items);
+
+            assert.equal(actual, expected);
+        });
+
+        it('should be able to draw the line', function() {
+            var lineValue = 10;
+
+            myEl._drawLine(lineValue);
+
+            var expected = 1
+                    , actual = myEl.getSvg().selectAll('line')[0].length;
+
+            assert.equal(actual, expected);
+        });
+
+        it('should be able to remove the line', function() {
+            var lineValue = 10;
+
+            myEl._drawLine(lineValue);
+            myEl._removeLine();
+
+            var expected = 0
+                    , actual = myEl.getSvg().selectAll('line')[0].length;
+
+            assert.equal(actual, expected);
+        });
+
+        it('should be able to compute styles for the line', function() {
+            assert.ok(myEl._computeLineStyles);
+        });
+
+        it('should not draw the line when showLine is set to false', function() {
+            var items = [
+                {key: 1, value: 1},
+                {key: 2, value: 5}
+            ];
+
+            myEl.items = items;
+            myEl.showLine = false;
+
+            var expected = 0
+                    , actual = myEl.getSvg().selectAll('line')[0].length;
+
+            assert.equal(actual, expected);
+        });
+
+        it('should be able to change the color of the rectangles', function() {
+            var items = [
+                {key: 1, value: 1},
+                {key: 2, value: 5}
+            ];
+
+            myEl.items = items;
+            myEl._updateRectanglesColor('#000000');
+
+            var expected = 'rgb(0, 0, 0)',
+                    actual = myEl.getRectangles()[0][0].style.fill;
+
+            assert.strictEqual(actual, expected);
+        });
+
+        it('should automatically change the rectangles color when rectanglesColor property is altered', function() {
+            var items = [
+                {key: 1, value: 1},
+                {key: 2, value: 5}
+            ];
+
+            myEl.items = items;
+            myEl.rectanglesColor = '#000000';
+
+            var expected = 'rgb(0, 0, 0)',
+                    actual = myEl.getRectangles()[0][0].style.fill;
+
+            assert.strictEqual(actual, expected);
+        });
+    });
+</script>

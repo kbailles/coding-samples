@@ -1,0 +1,169 @@
+<!doctype html>
+
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+
+    <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+    <script src="../../web-component-tester/browser.js"></script>
+    <script src="../../test-fixture/test-fixture-mocha.js"></script>
+
+    <link rel="import" href="../../test-fixture/test-fixture.html">
+    <link rel="import" href="../d3-arc-graph.html">
+</head>
+<body>
+
+<test-fixture id="ArcGraph">
+    <template>
+        <arc-graph>
+        </arc-graph>
+    </template>
+</test-fixture>
+
+<script>
+    describe('<arc-graph>', function() {
+        var myEl;
+
+        beforeEach(function() {
+            myEl = fixture('ArcGraph');
+        });
+
+        it('should set a ready property once initialized', function() {
+            assert.isTrue(myEl.ready);
+        });
+
+        it('should initialize the graph', function() {
+           assert.ok(myEl.getSvg());
+        });
+
+        it('should initialize the arc', function() {
+           assert.ok(myEl.getArc());
+        });
+
+        it('should initialize the thin arc', function() {
+           assert.ok(myEl.getThinArc());
+        });
+
+        it('should initialize arc path', function() {
+           assert.ok(myEl.getArcPath());
+        });
+
+        it('should initialize thin arc path', function() {
+            assert.ok(myEl.getThinArcPath());
+        });
+
+        it('should be properly setting the default color of the arc', function() {
+            var haystack = ['rgb(3, 119, 176)', '#0377b0']
+                    , needle = myEl.getArcPath().style('fill');
+
+            assert.include(haystack, needle);
+        });
+
+        it('should be properly setting the default color of the thin arc', function() {
+            var haystack = ['rgb(107, 206, 229)', '#6bcee5']
+                    , needle = myEl.getThinArcPath().style('fill');
+
+            assert.include(haystack, needle);
+        });
+
+        it('should update the color of the arc when a user changes the arcColor property', function() {
+            var haystack = ['rgb(0, 0, 0)', '#000000'];
+
+            myEl.arcColor = haystack[0];
+
+            var needle = myEl.getArcPath().style('fill');
+
+            assert.include(haystack, needle);
+        });
+
+        it('should update the color of the thin arc when a user changes the thinArcColor property', function() {
+            var haystack = ['rgb(0, 0, 0)', '#000000'];
+
+            myEl.thinArcColor = haystack[0];
+
+            var needle = myEl.getThinArcPath().style('fill');
+
+            assert.include(haystack, needle);
+        });
+
+        it('should calculate center radius from arc', function() {
+            var innerRad = myEl.getArc().innerRadius()()
+                    , outerRad = myEl.getArc().outerRadius()();
+
+            var innerOuterDiff = +((outerRad - innerRad) / 2).toFixed(1);
+
+            var expected = innerRad + innerOuterDiff
+                    , actual = myEl._calculateCenterRadiusForArc();
+
+            assert.equal(actual, expected);
+        });
+
+        it('should be able to set the radius of the thin arc', function() {
+            var expectedInner = 19
+                    , expectedOuter = 21;
+
+            myEl._setThinArcRadius(expectedInner, expectedOuter);
+
+            var actualInner = myEl.getThinArc().innerRadius()()
+                    , actualOuter = myEl.getThinArc().outerRadius()();
+
+            assert.equal(actualInner, expectedInner);
+            assert.equal(actualOuter, expectedOuter);
+        });
+
+        it('should draw when the user has set the end angle property', function() {
+           var spy = sinon.spy(myEl, 'draw');
+
+            myEl.endAngle = 195;
+
+            assert.isTrue(spy.calledOnce);
+        });
+
+        it('should set the "d" property on thin arc path when draw is called', function() {
+            myEl.endAngle = 195;
+
+            assert.ok(myEl.getThinArcPath().attr('d'));
+        });
+
+        it('should be able to turn degrees into radians', function () {
+            var expected = 3.49066;
+
+            var actual = myEl._degreesToRadians(200);
+
+            assert.closeTo(actual, expected, 0.25);
+        });
+
+        it('should default to 0 if a non number is passed when converting degrees', function() {
+            var expected = 0;
+
+            var actual = myEl._degreesToRadians('string');
+
+            assert.equal(actual, expected);
+        });
+
+        it('should not go below 0 radians when converting degrees', function() {
+            var expected = 0;
+
+            var actual = myEl._degreesToRadians(-300);
+
+            assert.equal(actual, expected);
+        });
+
+        it('should not go above 6.28319 radians when converting degrees', function () {
+            var expected = 6.28319;
+
+            var actual = myEl._degreesToRadians(400);
+
+            assert.closeTo(actual, expected, 0.01);
+        });
+
+        it('should call an arc tween method when drawn for animation', function () {
+            var spy = sinon.spy(myEl, '_arcTween');
+
+            myEl.endAngle = 200;
+
+            assert.isTrue(spy.called);
+        });
+    });
+</script>

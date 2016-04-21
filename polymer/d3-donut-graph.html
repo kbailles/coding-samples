@@ -1,0 +1,152 @@
+<link rel="import" href="../polymer/polymer.html">
+
+<script src="../d3/d3.min.js"></script>
+
+<dom-module id="donut-graph">
+    <style>
+        :host {
+            display: block;
+            height: 100%;
+        }
+    </style>
+    <template>
+    </template>
+</dom-module>
+
+<script>
+    (function () { 'use strict';
+
+        var svg
+				, pie
+                , arc
+                , colors
+                , width
+                , height;
+
+        Polymer({
+            is: 'donut-graph',
+
+            properties: {
+
+                arcColors: {
+                    type: Array,
+                    value: ['#3EA2D4', '#155AAD', '#A4DD28', '#77BC1F']
+                },
+
+                draw: {
+                    type: Array
+                },
+
+                ready: {
+                    type: Boolean,
+                    readOnly: true,
+                    notify: true
+                }
+
+            },
+
+            observers: [
+                'draw(data, ready)'
+            ],
+
+            attached: function() {
+              this._initializeGraph();
+            },
+
+            getSvg: function() {
+                return svg;
+            },
+			
+			getPie: function() {
+				return pie;	
+			},
+
+            getArc: function() {
+                return arc;
+            },
+
+            getPaths: function() {
+                return svg.selectAll('g.arc');
+            },
+
+            getColors: function() {
+                return colors;
+            },
+
+            getWidth: function() {
+                return width;
+            },
+
+            getHeight: function() {
+                return height;
+            },
+
+            draw: function() {
+                var self = this;
+
+                self.getPaths().data(self.getPie()([])).exit().remove();
+
+                self.getPaths()
+                            .data(self.getPie()(self.data))
+                            .enter()
+                        .append('g')
+                            .attr('class', 'arc');
+
+                self.getPaths()
+                        .append('path')
+                            .style('fill', function(d, i) { return self.getColors()(i); })
+                            .transition()
+                            .duration(1000)
+                            .call(self._arcTween.bind(self));
+            },
+
+            _initializeGraph: function () {
+                var self = this;
+
+                width = self.clientWidth;
+                height = self.clientHeight;
+
+				var minWidthHeight = Math.min(width, height)
+                        , radius = minWidthHeight / 2;
+
+                svg = d3.select(self)
+                            .append('svg')
+                            .attr('width', '100%')
+                            .attr('height', '100%')
+                            .attr('viewBox','0 0 ' + minWidthHeight + ' ' + minWidthHeight)
+                        .append("g")
+                            .attr('preserveAspectRatio', 'xMinYMin')
+                            .attr("transform", "translate(" + minWidthHeight / 2 + "," + minWidthHeight / 2 + ")");
+							
+				pie = d3.layout.pie()
+						.padAngle(.08)
+						.sort(null);
+
+                arc = d3.svg.arc()
+                        .innerRadius(radius - 15)
+                        .outerRadius(radius);
+
+                colors = d3.scale.ordinal()
+                        .range(self.arcColors);
+
+                self._setReady(true);
+            },
+
+            _arcTween: function (transition) {
+                var self = this;
+
+                transition.attrTween('d', function (d) {
+                    var interpolate = d3.interpolate(d.startAngle, d.endAngle);
+
+                    // 't' is the interval of time (0 to 1) since the transition has began.
+                    return function (t) {
+                        // When 't' is 1 transition is complete and interpolate will return newAngleInRadians.
+                        d.endAngle = interpolate(t);
+
+                        return self.getArc()(d);
+                    };
+                });
+            }
+        });
+    })();
+</script>

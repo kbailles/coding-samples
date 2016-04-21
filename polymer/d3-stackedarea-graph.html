@@ -1,0 +1,486 @@
+<link rel="import" href="../polymer/polymer.html">
+
+<link rel="import" href="../blue-core-behaviors/blue-utility-behavior.html">
+
+<script src="../d3/d3.min.js"></script>
+<script src="../lodash/lodash.min.js"></script>
+
+<dom-module id="stackedarea-graph">
+    <style>
+        :host {
+            display: block;
+            height: 100%;
+        }
+    </style>
+    <template>
+    </template>
+</dom-module>
+
+<script>
+    (function () { 'use strict';
+
+        var svg
+                , stack
+                , area
+                , valueLine
+                , xScale
+                , xAxis
+                , yScale
+                , yAxis
+                , width
+                , height
+                , colorRange
+                , clipPath;
+
+        Polymer({
+            is: 'stackedarea-graph',
+
+            properties: {
+
+                colors: {
+                    type: Array,
+                    value: [
+                        '#1E2226',
+                        '#155AAD',
+                        '#3EA2D4',
+                        '#77BC1F',
+                        '#AFE264'
+                    ]
+                },
+
+                showLine: {
+                    type: Boolean,
+                    value: true
+                },
+
+                showLinePath: {
+                    type: Boolean,
+                    value: true
+                },
+
+                showStackedArea: {
+                    type: Boolean,
+                    value: true
+                },
+
+                lineValue: {
+                    type: Number,
+                    value: 0
+                },
+
+                linePathItems: {
+                    type: Array,
+                    value: []
+                },
+
+                items: {
+                    type: Array
+                },
+
+                showLegend: {
+                    type: Boolean,
+                    value: true
+                },
+
+                ready: {
+                    type: Boolean,
+                    readOnly: true,
+                    notify: true
+                }
+
+            },
+
+            behaviors: [Insite.UtilityBehavior],
+
+            observers: [
+                '_setColorRange(colors, ready)',
+                'draw(items, linePathItems, lineValue, colors, showStackedArea, showLinePath, showLine, ready)',
+                '_toggleLegend(showLegend, ready)'
+            ],
+
+            attached: function() {
+                this._initializeGraph();
+            },
+
+            getSvg: function() {
+                return svg;
+            },
+
+            getStack: function() {
+                return stack;
+            },
+
+            getValueLine: function() {
+                return valueLine;
+            },
+
+            getArea: function() {
+                return area;
+            },
+
+            getScaleX: function() {
+                return xScale;
+            },
+
+            getAxisX: function() {
+                return xAxis;
+            },
+
+            getScaleY: function() {
+                return yScale;
+            },
+
+            getAxisY: function() {
+                return yAxis;
+            },
+
+            getWidth: function() {
+                return width;
+            },
+
+            getHeight: function() {
+                return height;
+            },
+
+            getColorRange: function() {
+                return colorRange;
+            },
+
+            getClipPath: function() {
+                return clipPath;
+            },
+
+            _setClipPathsWidth: function(width, shouldAnimate) {
+                if (!_.isNumber(width)) {
+                    return;
+                }
+
+                if (shouldAnimate) {
+                    this.getClipPath()
+                            .transition()
+                            .duration(1000)
+                            .attr('width', width);
+                } else {
+                    this.getClipPath()
+                            .attr('width', width);
+                }
+            },
+
+            _setColorRange: function(newColors) {
+                if (!newColors || !_.isArray(newColors)) {
+                    return;
+                }
+
+                colorRange = d3.scale.ordinal()
+                    .range(newColors);
+            },
+
+            draw: function() {
+                this._setScaleXDomain(this.items, this.linePathItems);
+                this._setScaleYDomain(this.items, this.linePathItems, this.lineValue);
+
+                this._setClipPathsWidth(0);
+
+                this.showStackedArea ? this._drawStackedArea(this.items) : this._removeStackedArea();
+                this.showLinePath ? this._drawLinePath(this.linePathItems) : this._removeLinePath();
+                this.showLine ? this._drawLine(this.lineValue) : this._removeLine();
+
+                this._setClipPathsWidth(this.getWidth(), true);
+
+                this._syncGraphAxisX();
+                this._syncGraphAxisY();
+
+                // Syncing graph axis will cause d3 to add/remove tick lines
+                // so this must be done after axis have been synced
+                svg.selectAll('.tick line')
+                        .attr('style', this._computeAxisStyles());
+            },
+
+            _drawStackedArea: function(items) {
+                var self = this
+                        , localColorRange = self.getColorRange();
+
+                self._removeStackedArea();
+
+                self.getSvg().selectAll('.series')
+                        .data(items)
+                        .enter()
+                        .append('g')
+                            .attr('class', 'series')
+                            .attr('clip-path', 'url(#rectClip)')
+                        .append('path')
+                            .attr('class', 'area')
+                            .attr('d', function (d) { return self.getArea()(d.values); })
+                            .attr('style', 'opacity: 0.85;')
+                            .style('fill', function (d, i) { return localColorRange(i); })
+                            .style('stroke', function (d, i) { return localColorRange(i); });
+            },
+
+            _removeStackedArea: function() {
+                this.getSvg().selectAll('.series')
+                        .data([])
+                        .exit()
+                        .remove();
+            },
+
+            _drawLinePath: function(pathData) {
+                this._removeLinePath();
+
+                this.getSvg().append('path')
+                        .attr('class', 'line-path')
+                        .attr('clip-path', 'url(#rectClip)')
+                        .attr('d', this.getValueLine()(pathData))
+                        .attr('style', this._computeLinePathStyles());
+            },
+
+            _removeLinePath: function() {
+                this.getSvg()
+                        .selectAll('.line-path')
+                        .remove();
+            },
+
+            _computeLinePathStyles: function() {
+                return 'fill: none; opacity: 0.4; stroke: #191919; stroke-width: 2; stroke-dasharray: 5, 5;';
+            },
+
+            _drawLine: function(lineValue) {
+                this._removeLine();
+
+                this.getSvg().append('line')
+                        .attr('class', 'line')
+                        .attr('clip-path', 'url(#rectClip)')
+                        .attr({
+                            x1: 0,
+                            x2: this.getWidth(),
+                            y1: this.getScaleY()(lineValue),
+                            y2: this.getScaleY()(lineValue)
+                        })
+                        .attr('style', this._computeLineStyles());
+            },
+
+            _removeLine: function() {
+                this.getSvg().selectAll('.line')
+                        .remove();
+            },
+
+            _computeLineStyles: function () {
+                return 'stroke-width: 2; stroke: #6BCEE5;';
+            },
+
+            _toggleLegend: function() {
+                if (this.showLegend) {
+                    this._drawLegend();
+                } else {
+                    this._removeLegend();
+                }
+            },
+
+            _drawLegend: function() {
+                var legendItems = [
+                    { text: 'FY Goal', style: this._computeLineStyles() },
+                    { text: 'Last FY', style: this._computeLinePathStyles() }
+                ];
+
+                this._removeLegend();
+
+                var legend = svg.selectAll('.legend')
+                        .data(legendItems)
+                        .enter()
+                        .append('g')
+                        .attr('class', 'legend')
+                        .attr('transform', function (d, i) {
+                            return 'translate(' + (i * 100) + ', -13)';
+                        });
+
+                legend.append('line')
+                        .attr({
+                            x1: 0, x2: 25,
+                            y1: 0, y2: 0
+                        })
+                        .attr('style', function(d) { return d.style; });
+
+                legend.append('text')
+                        .attr('x', 85)
+                        .attr('y', 0)
+                        .attr('dy', '.35em')
+                        .style('text-anchor', 'end')
+                        .text(function (d) { return d.text; });
+            },
+
+            _removeLegend: function() {
+                this.getSvg().selectAll('.legend')
+                        .remove();
+            },
+
+            _initializeGraph: function () {
+                var self = this;
+
+                var pad = {
+                    top: 40,
+                    left: 40
+                };
+
+                width = self.clientWidth;
+                height = self.clientHeight;
+
+                svg = d3.select(self)
+                        .append('svg')
+                            .attr('width', '100%')
+                            .attr('height', '100%')
+                            .attr('viewBox','0 0 ' + (pad.left + width) + ' ' + (pad.top + height))
+                            .attr('preserveAspectRatio', 'xMidYMid')
+                        .append('g')
+                            .attr('transform', 'translate(30, 20)');
+
+                xScale = d3.time.scale()
+                        .range([0, width]);
+
+                xAxis = d3.svg.axis()
+                        .scale(xScale)
+                        .ticks(d3.time.month, 2)
+                        .tickFormat(d3.time.format('%b'))
+                        .innerTickSize(-height)
+                        .outerTickSize(0)
+                        .orient('bottom');
+
+                yScale = d3.scale.linear()
+                        .range([height, 0]);
+
+                yAxis = d3.svg.axis()
+                        .scale(yScale)
+                        .ticks(6)
+                        .tickFormat(function(d) { return self._formatNumberToCurrency(d); })
+                        .innerTickSize(-width)
+                        .outerTickSize(0)
+                        .orient('left');
+
+                stack = d3.layout.stack()
+                        .offset('zero')
+                        .values(function(d) { return d.values; })
+                        .x(function(d) { return xScale(d.date); })
+                        .y(function(d) { return d.value; });
+
+                area = d3.svg.area()
+                        .x(function(d) { return xScale(d.date); })
+                        .y0(function(d) { return yScale(d.y0); })
+                        .y1(function(d) { return yScale(d.y0 + d.y); });
+
+                valueLine = d3.svg.line()
+                        .x(function(d) { return xScale(d.date); })
+                        .y(function(d) { return yScale(d.value); });
+
+                self._drawAxis();
+
+                clipPath = svg.append('clipPath')
+                        .attr('id', 'rectClip')
+                        .append('rect')
+                        .attr('height', height)
+                        .attr('width', 0);
+
+                self._setReady(true);
+            },
+
+            _drawAxis: function() {
+                this.getSvg()
+                        .append('g')
+                        .attr('class', 'x axis')
+                        .attr('transform', 'translate(0, ' + this.getHeight() + ')')
+                        .call(this.getAxisX());
+
+                this.getSvg()
+                        .append('g')
+                        .attr('class', 'y axis')
+                        .call(this.getAxisY());
+
+                // Polymer does not scope SVG elements consistently
+                // See https://github.com/Polymer/polymer/issues/2407
+                // When that issue is resolved remove this to CSS
+                svg.selectAll('.axis path')
+                        .attr('style', this._computeAxisStyles());
+
+                svg.selectAll('.tick line')
+                        .attr('style', this._computeAxisStyles());
+            },
+
+            _computeAxisStyles: function() {
+                return 'shape-rendering: crispEdges; fill: none; stroke-width: 1; stroke: #D3D3D3; opacity: .7;';
+            },
+
+            _setScaleXDomain: function(items) {
+                if (!_.isArray(items) || items.length <= 0) {
+                    return;
+                }
+
+                var dates = _.chain(items)
+                        .pluck('values')
+                        .flatten()
+                        .pluck('date')
+                        .value();
+
+                this.getScaleX().domain([
+                    d3.min(dates),
+                    d3.max(dates)
+                ]);
+            },
+
+            _setScaleYDomain: function(items, pathItems, lineValue) {
+                if (!_.isArray(items) || items.length <= 0) {
+                    return;
+                }
+
+                this.getScaleY().domain([
+                    0,
+                    this._getMaxValue(items, pathItems, lineValue)
+                ]);
+            },
+
+            _syncGraphAxisX: function() {
+                this.getSvg().selectAll('.x.axis')
+                        .call(this.getAxisX());
+            },
+
+            _syncGraphAxisY: function() {
+                this.getSvg().selectAll('.y.axis')
+                        .call(this.getAxisY());
+            },
+
+            _getMaxValue: function(items, pathItems, lineValue) {
+                var toY0PlusY = []
+                        , pathValues = []
+                        , lineValAsArray = [];
+
+                if (items && _.isArray(items)) {
+                    toY0PlusY = this._ToY0PlusYValues(items);
+                }
+
+                if (pathItems && _.isArray(pathItems)) {
+                    pathValues = _.pluck(pathItems, 'value');
+                }
+
+                if (_.isNumber(lineValue)) {
+                    lineValAsArray.push(lineValue);
+                }
+
+                var union = _.union(toY0PlusY, pathValues, lineValAsArray);
+
+                return union.length <= 0 ? 0 : d3.max(union);
+            },
+
+            _ToY0PlusYValues: function(items) {
+                var y0PlusY = [];
+
+                if (!items || !_.isArray(items)) {
+                    return y0PlusY;
+                }
+
+                this.getStack()(items);
+
+                _.forEach(items, function(item) {
+                    y0PlusY.push(_.map(item.values, function(v) { return v.y0 + v.y; }));
+                });
+
+                return _.flatten(y0PlusY);
+            }
+        });
+    })();
+</script>

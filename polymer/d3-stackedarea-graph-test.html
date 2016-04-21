@@ -1,0 +1,601 @@
+<!doctype html>
+
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+
+    <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+    <script src="../../web-component-tester/browser.js"></script>
+    <script src="../../test-fixture/test-fixture-mocha.js"></script>
+
+    <link rel="import" href="../../test-fixture/test-fixture.html">
+    <link rel="import" href="../d3-stackedarea-graph.html">
+</head>
+<body>
+
+<test-fixture id="StackedAreaGraph">
+    <template>
+        <stackedarea-graph>
+        </stackedarea-graph>
+    </template>
+</test-fixture>
+
+<script>
+    describe('<stackedarea-graph>', function () {
+        var myEl;
+
+        beforeEach(function () {
+            myEl = fixture('StackedAreaGraph');
+        });
+
+        it('should set a ready property once initialized', function () {
+            assert.isTrue(myEl.ready);
+        });
+
+        it('should create the svg', function () {
+            assert.ok(myEl.getSvg());
+        });
+
+        it('should create the x scale', function() {
+           assert.ok(myEl.getScaleX());
+        });
+
+        it('should create the y scale', function() {
+            assert.ok(myEl.getScaleY());
+        });
+
+        it('should create the x axis', function() {
+           assert.ok(myEl.getAxisX());
+        });
+
+        it('should create the y axis', function() {
+            assert.ok(myEl.getAxisY());
+        });
+
+        it('should create the stack', function() {
+            assert.ok(myEl.getStack());
+        });
+
+        it('should create the area', function() {
+            assert.ok(myEl.getArea());
+        });
+
+        it('should create the value line for previous year amount', function() {
+             assert.ok(myEl.getValueLine());
+        });
+
+        it('should initialize width', function() {
+           assert.ok(myEl.getWidth());
+        });
+
+        it('should initialize height', function() {
+            assert.ok(myEl.getHeight());
+        });
+
+        it('should contain a color property with a default range', function() {
+            var expected = ['#1E2226', '#155AAD', '#3EA2D4', '#77BC1F', '#AFE264']
+                    , actual = myEl.colors;
+
+            assert.deepEqual(actual, expected);
+        });
+
+        it('should be able to get the range of colors', function() {
+            assert.ok(myEl.getColorRange());
+        });
+
+        it('should be create the clip path for animation', function() {
+            assert.ok(myEl.getClipPath());
+        });
+
+        it('should not set the color range if you pass in something that is not an array', function() {
+            myEl._setColorRange('string');
+
+            var expected = ['#1E2226', '#155AAD', '#3EA2D4', '#77BC1F', '#AFE264']
+                    , actual = myEl.getColorRange().range();
+
+            assert.deepEqual(actual, expected);
+        });
+
+        it('should be able to set the color range', function() {
+            var expected = ['#111111', '#000000'];
+
+            myEl._setColorRange(expected);
+
+            var actual = myEl.getColorRange().range();
+
+            assert.deepEqual(actual, expected);
+        });
+
+        it('should update the color range when colors property is changed', function () {
+            var expected = ['#000000'];
+
+            myEl.colors = expected;
+
+            var actual = myEl.getColorRange().range();
+
+            assert.deepEqual(actual, expected);
+        });
+
+        it('should contain a property that determines if stacks is shown or not that is defaulted to true', function() {
+            assert.isTrue(myEl.showStackedArea)
+        });
+
+        it('should contain a property that determines if a line path is drawn that is defaulted to true', function() {
+            assert.isTrue(myEl.showLinePath);
+        });
+
+        it('should contain a property that determines if a straight line is drawn that is defaulted to true', function() {
+            assert.isTrue(myEl.showLine);
+        });
+
+        it('should contain a property that determines if the legend is drawn that is defaulted to true', function() {
+            assert.isTrue(myEl.showLegend);
+        });
+
+        it('should be able to set the domain for the x axis scale', function() {
+            var items = [
+                {
+                    name: 'test',
+                    values: [
+                        { date: new Date(), value: 1}
+                    ]
+                }
+            ];
+
+            myEl._setScaleXDomain(items);
+
+            var expected = myEl.getWidth()
+                    , actual = myEl.getScaleX()(items[0].values[0].date);
+
+            assert.isBelow(actual, expected);
+        });
+
+        it('should be able to set the domain for the y axis scale', function() {
+            var items = [
+                {
+                    name: 'test',
+                    values: [
+                        { date: new Date(), value: 1}
+                    ]
+                }
+            ];
+
+            myEl.getStack()(items);
+            myEl._setScaleYDomain(items);
+
+            var expected = myEl.getHeight()
+                    , actual = myEl.getScaleY()(items[0].values[0].value);
+
+            assert.isBelow(actual, expected);
+        });
+
+        it('should call draw when data is set', function() {
+            var items = [
+                {
+                    name: 'test',
+                    values: [
+                        { date: new Date(), value: 1}
+                    ]
+                }
+            ];
+
+            var spy = sinon.spy(myEl, 'draw');
+
+            myEl.items = items;
+
+            assert.isTrue(spy.called);
+        });
+
+        it('should draw x axis when initialized', function() {
+            assert.ok(myEl.getSvg().selectAll('x.axis'));
+        });
+
+        it('should draw y axis when initialized', function() {
+            assert.ok(myEl.getSvg().selectAll('y.axis'));
+        });
+
+        it('should be able to get axis path styles', function() {
+             var expected = 'shape-rendering: crispEdges; fill: none; stroke-width: 1; stroke: #D3D3D3; opacity: .7;'
+                     , actual = myEl._computeAxisStyles();
+
+            assert.strictEqual(actual, expected);
+        });
+
+        it('should be able to update graphs x axis to sync with xAxis object', function() {
+            var items = [
+                {
+                    name: 'test',
+                    values: [
+                        { date: new Date(2015, 1, 1), value: 1},
+                        { date: new Date(2015, 2, 1), value: 2},
+                        { date: new Date(2015, 3, 1), value: 3},
+                        { date: new Date(2015, 4, 1), value: 4}
+                    ]
+                }
+            ];
+
+            var beforeSync = myEl.getAxisX().scale().ticks().length;
+
+            myEl.items = items;
+            myEl._syncGraphAxisX();
+
+            var afterSync = myEl.getAxisX().scale().ticks().length;
+
+            assert.notEqual(beforeSync, afterSync);
+        });
+
+        it('should be able to update graphs y axis to sync with yAxis object', function() {
+            var items = [
+                {
+                    name: 'test',
+                    values: [
+                        { date: new Date(2015, 1, 1), value: 1},
+                        { date: new Date(2015, 2, 1), value: 2},
+                        { date: new Date(2015, 3, 1), value: 3},
+                        { date: new Date(2015, 4, 1), value: 4}
+                    ]
+                }
+            ];
+
+            myEl.items = items;
+            myEl._syncGraphAxisY();
+
+            var expected = myEl.getAxisY().scale().ticks().length
+                    , actual = myEl.getSvg().selectAll('.y.axis .tick')[0].length;
+
+            assert.equal(actual, expected);
+        });
+
+        it('should be able to draw the stacked area', function() {
+            var items = [
+                {
+                    name: 'test',
+                    values: [
+                        { date: new Date(2015, 1, 1), value: 1},
+                        { date: new Date(2015, 2, 1), value: 2},
+                        { date: new Date(2015, 3, 1), value: 3},
+                        { date: new Date(2015, 4, 1), value: 4}
+                    ]
+                }
+            ];
+
+            myEl.items = items;
+
+            var actual = myEl.getSvg().selectAll('.series')[0].length
+                    , expected = 1;
+
+            assert.equal(actual, expected);
+        });
+
+        it('should be able to remove drawn stacked area', function() {
+            var items = [
+                {
+                    name: 'test',
+                    values: [
+                        { date: new Date(2015, 1, 1), value: 1},
+                        { date: new Date(2015, 2, 1), value: 2},
+                        { date: new Date(2015, 3, 1), value: 3},
+                        { date: new Date(2015, 4, 1), value: 4}
+                    ]
+                }
+            ];
+
+            myEl.items = items;
+
+            myEl._removeStackedArea();
+
+            var actual = myEl.getSvg().selectAll('.series')[0].length
+                    , expected = 0;
+
+            assert.equal(actual, expected);
+        });
+
+        it('should not draw the stacks if showStacks is false', function() {
+            myEl.showStackedArea = false;
+
+            var items = [
+                {
+                    name: 'test',
+                    values: [
+                        { date: new Date(2015, 1, 1), value: 1},
+                        { date: new Date(2015, 2, 1), value: 2},
+                        { date: new Date(2015, 3, 1), value: 3},
+                        { date: new Date(2015, 4, 1), value: 4}
+                    ]
+                }
+            ];
+
+            myEl.items = items;
+
+            var actual = myEl.getSvg().selectAll('.series')[0].length
+                    , expected = 0;
+
+            assert.equal(actual, expected);
+        });
+
+        it('should be able to draw the line path', function() {
+            var pathData = [
+                {date: new Date(2015, 1, 1), value: 1},
+                {date: new Date(2015, 2, 1), value: 2},
+                {date: new Date(2015, 3, 1), value: 3},
+                {date: new Date(2015, 4, 1), value: 4}
+            ];
+
+            myEl._drawLinePath(pathData);
+
+            var actual = myEl.getSvg().selectAll('.line-path')[0].length
+                    , expected = 1;
+
+            assert.equal(actual, expected);
+        });
+
+        it('should be able to remove the line path', function() {
+            var pathData = [
+                {date: new Date(2015, 1, 1), value: 1},
+                {date: new Date(2015, 2, 1), value: 2},
+                {date: new Date(2015, 3, 1), value: 3},
+                {date: new Date(2015, 4, 1), value: 4}
+            ];
+
+            myEl._drawLinePath(pathData);
+            myEl._removeLinePath();
+
+            var actual = myEl.getSvg().selectAll('.line-path')[0].length
+                    , expected = 0;
+
+            assert.equal(actual, expected);
+        });
+
+        it('should not draw the line path if showLinePath is false', function() {
+            var items = [
+                {
+                    name: 'test',
+                    values: [
+                        { date: new Date(2015, 1, 1), value: 1},
+                        { date: new Date(2015, 2, 1), value: 2},
+                        { date: new Date(2015, 3, 1), value: 3},
+                        { date: new Date(2015, 4, 1), value: 4}
+                    ]
+                }
+            ];
+
+            myEl.showLinePath = false;
+            myEl.items = items;
+
+            var actual = myEl.getSvg().selectAll('.line-path')[0].length
+                    , expected = 0;
+
+            assert.equal(actual, expected);
+        });
+
+        it('should return empty array when trying to convert values to y0 plus y if you pass something that is not an array', function() {
+            var expected = []
+                    , actual = myEl._ToY0PlusYValues('string');
+
+            assert.deepEqual(actual, expected);
+        });
+
+        it('should be able to turn the values to y0 plus y values', function() {
+            var items = [
+                {
+                    name: 'test',
+                    values: [
+                        { date: new Date(2015, 1, 1), value: 100},
+                        { date: new Date(2015, 2, 1), value: 200},
+                        { date: new Date(2015, 3, 1), value: 300},
+                        { date: new Date(2015, 4, 1), value: 400}
+                    ]
+                },
+                {
+                    name: 'test2',
+                    values: [
+                        { date: new Date(2015, 1, 1), value: 100},
+                        { date: new Date(2015, 2, 1), value: 200},
+                        { date: new Date(2015, 3, 1), value: 300},
+                        { date: new Date(2015, 4, 1), value: 400}
+                    ]
+                }
+            ];
+
+            var expected = [100, 200, 300, 400, 200, 400, 600, 800]
+                    , actual = myEl._ToY0PlusYValues(items);
+
+            assert.deepEqual(actual, expected);
+        });
+
+        it('should be able to get the max value of items, line path items, and line value', function() {
+            var items = [
+                {
+                    name: 'test',
+                    values: [
+                        { date: new Date(2015, 1, 1), value: 1},
+                        { date: new Date(2015, 2, 1), value: 2},
+                        { date: new Date(2015, 3, 1), value: 3},
+                        { date: new Date(2015, 4, 1), value: 4}
+                    ]
+                }
+            ];
+
+            var pathData = [
+                {date: new Date(2015, 1, 1), value: 12},
+                {date: new Date(2015, 2, 1), value: 24},
+                {date: new Date(2015, 3, 1), value: 36},
+                {date: new Date(2015, 4, 1), value: 48}
+            ];
+
+            var lineValue = 100;
+
+            var actual = myEl._getMaxValue(items, pathData, lineValue)
+                    , expected = 100;
+
+            assert.equal(actual, expected);
+        });
+
+        it('should be able to get the max value if just items is passed', function() {
+            var items = [
+                {
+                    name: 'test',
+                    values: [
+                        { date: new Date(2015, 1, 1), value: 1},
+                        { date: new Date(2015, 2, 1), value: 2},
+                        { date: new Date(2015, 3, 1), value: 3},
+                        { date: new Date(2015, 4, 1), value: 4}
+                    ]
+                }
+            ];
+
+            var actual = myEl._getMaxValue(items)
+                    , expected = 4;
+
+            assert.equal(actual, expected);
+        });
+
+        it('should return 0 if nothing is passed to max value function', function() {
+            var actual = myEl._getMaxValue()
+                    , expected = 0;
+
+            assert.equal(actual, expected);
+        });
+
+        it('should return 0 if something other than an array is passed to max value function', function() {
+            var actual = myEl._getMaxValue('string')
+                    , expected = 0;
+
+            assert.equal(actual, expected);
+        });
+
+        it('should be able to get line path styles', function() {
+            var expected = 'fill: none; opacity: 0.4; stroke: #191919; stroke-width: 2; stroke-dasharray: 5, 5;'
+                    , actual = myEl._computeLinePathStyles();
+
+            assert.strictEqual(actual, expected);
+        });
+
+        it('should be able to draw the line', function() {
+            myEl._drawLine(100);
+
+            var actual = myEl.getSvg().selectAll('.line')[0].length
+                    , expected = 1;
+
+            assert.equal(actual, expected);
+        });
+
+        it('should be able to remove the line', function() {
+            myEl._drawLine(100);
+            myEl._removeLine();
+
+            var actual = myEl.getSvg().selectAll('.line')[0].length
+                    , expected = 0;
+
+            assert.equal(actual, expected);
+        });
+
+        it('should draw the line when items is populated and lineValue is greater than 0', function() {
+            var items = [
+                {
+                    name: 'test',
+                    values: [
+                        { date: new Date(2015, 1, 1), value: 1},
+                        { date: new Date(2015, 2, 1), value: 2},
+                        { date: new Date(2015, 3, 1), value: 3},
+                        { date: new Date(2015, 4, 1), value: 4}
+                    ]
+                }
+            ];
+
+            myEl.lineValue = 100;
+            myEl.items = items;
+
+
+            var actual = myEl.getSvg().selectAll('.line')[0].length
+                    , expected = 1;
+
+            assert.equal(actual, expected);
+        });
+
+        it('should not draw the line if showLine is false', function() {
+            var items = [
+                {
+                    name: 'test',
+                    values: [
+                        { date: new Date(2015, 1, 1), value: 1},
+                        { date: new Date(2015, 2, 1), value: 2},
+                        { date: new Date(2015, 3, 1), value: 3},
+                        { date: new Date(2015, 4, 1), value: 4}
+                    ]
+                }
+            ];
+
+            myEl.showLine = false;
+            myEl.lineValue = 100;
+            myEl.items = items;
+
+
+            var actual = myEl.getSvg().selectAll('.line')[0].length
+                    , expected = 0;
+
+            assert.equal(actual, expected);
+        });
+
+        it('should be able to get line styles', function() {
+            var expected = 'stroke-width: 2; stroke: #6BCEE5;'
+                    , actual = myEl._computeLineStyles();
+
+            assert.strictEqual(actual, expected);
+        });
+
+        it('should be able to draw the legend', function() {
+            myEl._drawLegend();
+
+            var legendItems = myEl.getSvg().selectAll('.legend')[0].length;
+
+            assert.ok(legendItems);
+        });
+
+        it('should be able to remove the legend', function() {
+            myEl._drawLegend();
+            myEl._removeLegend();
+
+            var legendItems = myEl.getSvg().selectAll('.legend')[0].length;
+
+            assert.notOk(legendItems);
+        });
+
+        it('should draw the legend on initialization', function () {
+            var actual = myEl.getSvg().selectAll('.legend')[0].length;
+
+            assert.ok(actual);
+        });
+
+        it('should remove the legend if showLegend becomes false', function() {
+            myEl.showLegend = false;
+
+            var actual = myEl.getSvg().selectAll('.legend')[0].length;
+
+            assert.notOk(actual);
+        });
+
+        it('should not change the clip paths width if a non number is passed', function() {
+            var initialClipPathWidth = myEl.getClipPath().attr('width');
+
+            myEl._setClipPathsWidth('string');
+
+            var actual = myEl.getClipPath().attr('width')
+                    , expected = initialClipPathWidth;
+
+            assert.equal(actual, expected);
+        });
+
+        it('should be able to set the width of the clip path', function() {
+            var width = 500;
+
+            myEl._setClipPathsWidth(width);
+
+            var actual = myEl.getClipPath().attr('width')
+                    , expected = width;
+
+            assert.equal(actual, expected);
+        });
+    });
+</script>
